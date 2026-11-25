@@ -1,0 +1,23 @@
+{
+  "corpus_revision": "indian-law-reviewed-v1",
+  "documents": [
+    {
+      "document_id": "rti-act-2005",
+      "document_title": "Right to Information Act, 2005",
+      "pdf_path": "documents/rti-act-2005.pdf",
+      "official_source_url": "https://rti.gov.in/example/rti-act-2005.pdf"
+    },
+    {
+      "document_id": "rti-rules-2012",
+      "document_title": "Right to Information Rules, 2012",
+      "pdf_path": "documents/rti-rules-2012.pdf",
+      "official_source_url": "https://dopt.gov.in/example/rti-guidelines.pdfexample/rti-rules-2012.pdf"
+    },
+    {
+      "document_id": "rti-guidelines",
+      "document_title": "RTI Official Guidelines",
+      "pdf_path": "documents/rti-guidelines.pdf",
+      "official_source_url": "https://dopt.gov.in/"
+    }
+  ]
+}
