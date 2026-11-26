@@ -1,0 +1,2 @@
+import {ShieldCheck} from "lucide-react";
+export default function Brand(){return <div className="brand"><div className="brand-mark"><ShieldCheck size={22}/></div><div><b>SATYA<span>.</span></b><small>LEGAL INTELLIGENCE</small></div></div>}

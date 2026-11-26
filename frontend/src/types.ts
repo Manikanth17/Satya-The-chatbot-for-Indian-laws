@@ -1,0 +1,5 @@
+export type ChatStatus = "answered"|"partial"|"clarification"|"refusal"|"conflict";
+export interface SupportingQuote { evidence_id:string; quote:string }
+export interface Claim { claim_id:string; text:string; supporting_quotes:SupportingQuote[]; support_assessment?:"supported"|"unsupported"|"uncertain" }
+export interface EvidenceItem { evidence_id?:string; document_id?:string; document_title?:string; title?:string; source_url?:string; official_url?:string; page_number?:number; pdf_page_number?:number; exact_text?:string; quote?:string }
+export interface ChatResponse { schema_version?:string; status:ChatStatus; mode?:string; corpus_revision?:string; evidence_label?:string; message?:string; claims?:Claim[]; evidence?:EvidenceItem[]; unanswered_count?:number; notice?:string; disclaimer?:string }

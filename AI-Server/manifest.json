@@ -1,0 +1,35 @@
+{
+  "corpus_revision": "rti-central-v1",
+  "documents": [
+    {
+      "document_id": "rti-act-2005",
+      "document_title": "Right to Information Act, 2005",
+      "pdf_path": "data/documents/rti-act-2005.pdf",
+      "official_source_url": "https://cic.gov.in/index.php/rti_act"
+    },
+    {
+      "document_id": "rti-rules-2012",
+      "document_title": "Right to Information Rules, 2012",
+      "pdf_path": "data/documents/rti-rules-2012.pdf",
+      "official_source_url": "https://cic.gov.in/sites/default/files/RTI/RTIRules2012.pdf"
+    },
+    {
+      "document_id": "rti-fee-cost-rules-2005",
+      "document_title": "Right to Information (Regulation of Fee and Cost) Rules, 2005",
+      "pdf_path": "data/documents/rti-fee-cost-rules-2005.pdf",
+      "official_source_url": "https://cic.gov.in/sites/default/files/RTI/RTI%20Fee%20Cost%20Rules.pdf"
+    },
+    {
+      "document_id": "rti-fee-cost-amendment-2005",
+      "document_title": "Right to Information (Regulation of Fee and Cost) (Amendment) Rules, 2005",
+      "pdf_path": "data/documents/rti-fee-cost-amendment-2005.pdf",
+      "official_source_url": "https://cic.gov.in/sites/default/files/RTI/RTI%20Fee%20Cost%20Rules%20Amendment.pdf"
+    },
+    {
+      "document_id": "rti-fee-cost-amendment-2006",
+      "document_title": "Right to Information (Regulation of Fee and Cost) Amendment Rules, 2006",
+      "pdf_path": "data/documents/rti-fee-cost-amendment-2006.pdf",
+      "official_source_url": "https://cic.gov.in/sites/default/files/RTI/notification-dopt-ipo.pdf"
+    }
+  ]
+}

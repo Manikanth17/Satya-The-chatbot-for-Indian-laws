@@ -13,7 +13,11 @@ import org.hibernate.annotations.Immutable;
 public class EvidenceRecord {
 
     @Id
-    @Column(name = "record_key", length = 64, nullable = false)
+    @Column(
+        name = "record_key",
+        columnDefinition = "CHAR(64)",
+        nullable = false
+    )
     private String recordKey;
 
     @Column(name = "corpus_revision", length = 160, nullable = false)
@@ -28,7 +32,10 @@ public class EvidenceRecord {
     @Column(name = "payload", columnDefinition = "LONGTEXT", nullable = false)
     private String payload;
 
-    @Column(name = "bundle_sha256", length = 64)
+    @Column(
+        name = "bundle_sha256",
+        columnDefinition = "CHAR(64)"
+    )
     private String bundleSha256;
 
     protected EvidenceRecord() {

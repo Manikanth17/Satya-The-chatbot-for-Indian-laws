@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Build SATYA's canonical evidence bundle and local retrieval index from a reviewed manifest."""
+"""Build SATYA's evidence bundle and local retrieval index."""
+
 import argparse
 import hashlib
 import json
@@ -9,81 +10,230 @@ from urllib.parse import urlparse
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
+
 from app.ingestion.pdf_loader import extract_pages
 from app.ingestion.paragraphs import build_records
 
 
 def sha256(path: Path) -> str:
     digest = hashlib.sha256()
+
     with path.open("rb") as stream:
         for chunk in iter(lambda: stream.read(1024 * 1024), b""):
             digest.update(chunk)
+
     return digest.hexdigest()
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--manifest", required=True, help="JSON manifest describing 3–5 official PDF documents")
-    parser.add_argument("--reviewed", action="store_true", help="Attest that extracted text, page numbers and source URLs have been manually reviewed")
-    parser.add_argument("--out", default=str(ROOT / "data"), help="Output directory")
-    args = parser.parse_args()
-    if not args.reviewed:
-        parser.error("Refusing to mark a corpus reviewed. Inspect extracted text, then rerun with --reviewed.")
+    cli = argparse.ArgumentParser(description=__doc__)
 
+    cli.add_argument(
+        "--manifest",
+        required=True,
+        help="JSON manifest describing 3–5 official PDF documents."
+    )
+
+    mode = cli.add_mutually_exclusive_group(required=True)
+
+    mode.add_argument(
+        "--draft",
+        action="store_true",
+        help="Generate an unreviewed draft evidence bundle."
+    )
+
+    mode.add_argument(
+        "--reviewed",
+        action="store_true",
+        help="Generate a bundle marked as manually reviewed."
+    )
+
+    cli.add_argument(
+        "--out",
+        default=None,
+        help="Optional output directory."
+    )
+
+    args = cli.parse_args()
+
+    is_reviewed = args.reviewed
+
+    # Select output directory.
+    if args.out:
+        output_dir = Path(args.out).resolve()
+    elif is_reviewed:
+        output_dir = ROOT / "data"
+    else:
+        output_dir = ROOT / "data" / "draft"
+
+    # Load manifest.
     manifest_path = Path(args.manifest).resolve()
-    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+
+    if not manifest_path.is_file():
+        cli.error(f"Manifest not found: {manifest_path}")
+
+    try:
+        manifest = json.loads(
+            manifest_path.read_text(encoding="utf-8")
+        )
+    except json.JSONDecodeError as exc:
+        cli.error(f"Invalid manifest JSON: {exc}")
+
     revision = manifest.get("corpus_revision", "").strip()
     docs = manifest.get("documents", [])
-    if not revision or len(docs) < 3 or len(docs) > 5:
-        parser.error("Manifest must contain corpus_revision and 3–5 documents (required by current Java importer).")
 
-    output = Path(args.out).resolve()
-    output.mkdir(parents=True, exist_ok=True)
-    bundle_docs, all_paragraphs = [], []
+    if not revision or not isinstance(docs, list) or not 3 <= len(docs) <= 5:
+        cli.error(
+            "Manifest must contain corpus_revision and 3–5 documents."
+        )
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    bundle_docs = []
+    all_paragraphs = []
+    seen_ids = set()
+
+    # Process documents.
     for doc in docs:
-        required = ["document_id", "document_title", "pdf_path", "official_source_url"]
-        missing = [key for key in required if not doc.get(key)]
+
+        if not isinstance(doc, dict):
+            cli.error("Each document must be a JSON object.")
+
+        required = [
+            "document_id",
+            "document_title",
+            "pdf_path",
+            "official_source_url"
+        ]
+
+        missing = [
+            key for key in required
+            if not doc.get(key)
+        ]
+
         if missing:
-            parser.error(f"Document is missing fields: {', '.join(missing)}")
-        if len(doc["document_id"]) > 70:
-            parser.error("document_id must be 70 characters or fewer.")
-        pdf_path = (manifest_path.parent / doc["pdf_path"]).resolve()
+            cli.error(
+                f"Document is missing fields: {', '.join(missing)}"
+            )
+
+        document_id = doc["document_id"]
+
+        if len(document_id) > 70:
+            cli.error(
+                f"Document ID exceeds 70 characters: {document_id}"
+            )
+
+        if document_id in seen_ids:
+            cli.error(f"Duplicate document ID: {document_id}")
+
+        seen_ids.add(document_id)
+
+        # Validate PDF.
+        pdf_path = (
+            manifest_path.parent / doc["pdf_path"]
+        ).resolve()
+
         if not pdf_path.is_file() or pdf_path.suffix.lower() != ".pdf":
-            parser.error(f"PDF not found or not a PDF: {pdf_path}")
+            cli.error(f"PDF not found or invalid: {pdf_path}")
+
+        # Validate source URL format.
         url = urlparse(doc["official_source_url"])
+
         if url.scheme != "https" or not url.hostname:
-            parser.error(f"Official source must be an HTTPS URL: {doc['official_source_url']}")
+            cli.error(
+                f"Official source must be an HTTPS URL: "
+                f"{doc['official_source_url']}"
+            )
+
+        # Extract PDF pages.
+        print(f"\nProcessing: {doc['document_title']}")
+
         pages = extract_pages(pdf_path)
+
         if not pages:
-            parser.error(f"No pages found in {pdf_path.name}")
-        metadata = {**doc, "pdf_path": str(pdf_path)}
+            cli.error(f"No pages found in {pdf_path.name}")
+
+        metadata = {
+            **doc,
+            "pdf_path": str(pdf_path)
+        }
+
+        # Build document metadata.
         bundle_docs.append({
-            "document_id": doc["document_id"],
+            "document_id": document_id,
             "corpus_revision": revision,
             "document_title": doc["document_title"],
             "official_source_url": doc["official_source_url"],
             "sha256": sha256(pdf_path),
             "pdf_page_count": len(pages),
-            "reviewed": True,
+            "reviewed": is_reviewed
         })
-        records = build_records(metadata, pages, revision)
-        if not records:
-            parser.error(f"No extractable paragraphs found in {pdf_path.name}; OCR may be needed.")
-        all_paragraphs.extend(records)
-        print(f"Extracted {len(records)} paragraphs from {pdf_path.name} ({len(pages)} pages)")
 
+        # Build paragraph records.
+        records = build_records(
+            metadata,
+            pages,
+            revision
+        )
+
+        if not records:
+            cli.error(
+                f"No extractable paragraphs found in {pdf_path.name}. "
+                "OCR may be required."
+            )
+
+        all_paragraphs.extend(records)
+
+        print(
+            f"Extracted {len(records)} paragraphs "
+            f"from {pdf_path.name} ({len(pages)} pages)"
+        )
+
+    # Build evidence bundle.
     bundle = {
         "schema_version": "satya-evidence-v1",
         "corpus_revision": revision,
-        "extraction_reviewed": True,
+        "extraction_reviewed": is_reviewed,
         "documents": bundle_docs,
-        "paragraphs": all_paragraphs,
+        "paragraphs": all_paragraphs
     }
-    (output / "evidence_bundle.json").write_text(json.dumps(bundle, ensure_ascii=False, indent=2), encoding="utf-8")
-    (output / "index.json").write_text(json.dumps({"corpus_revision": revision, "paragraphs": all_paragraphs}, ensure_ascii=False), encoding="utf-8")
-    print(f"\nWrote {output / 'evidence_bundle.json'}")
-    print(f"Wrote {output / 'index.json'}")
-    print("IMPORTANT: Manually review the PDF extraction and bundle before importing it into the Java backend.")
+
+    # Build retrieval index.
+    index = {
+        "corpus_revision": revision,
+        "paragraphs": all_paragraphs
+    }
+
+    bundle_path = output_dir / "evidence_bundle.json"
+    index_path = output_dir / "index.json"
+
+    bundle_path.write_text(
+        json.dumps(bundle, ensure_ascii=False, indent=2),
+        encoding="utf-8"
+    )
+
+    index_path.write_text(
+        json.dumps(index, ensure_ascii=False, indent=2),
+        encoding="utf-8"
+    )
+
+    print("\n" + "=" * 45)
+
+    print(f"Mode: {'REVIEWED' if is_reviewed else 'DRAFT'}")
+    print(f"Documents: {len(bundle_docs)}")
+    print(f"Paragraphs: {len(all_paragraphs)}")
+    print(f"Output directory: {output_dir}")
+
+    print(f"\nEvidence bundle: {bundle_path}")
+    print(f"Retrieval index: {index_path}")
+
+    if is_reviewed:
+        print("\nBundle marked as reviewed.")
+        print("Ensure manual evidence review was actually completed.")
+    else:
+        print("\nDRAFT BUNDLE CREATED.")
+        print("This evidence has NOT been manually reviewed.")
+
     return 0
 
 

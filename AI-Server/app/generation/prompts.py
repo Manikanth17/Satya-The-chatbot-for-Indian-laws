@@ -13,8 +13,8 @@ def build_user_prompt(question: str, passages: list[dict]) -> str:
         excerpts.append({
             "evidence_id": p.get("paragraph_id"),
             "document_id": p.get("document_id"),
-            "title": p.get("title"),
-            "page": p.get("page_number"),
+            "title": p.get("document_title") or p.get("title"),
+            "page": p.get("pdf_page_number") or p.get("page_number"),
             "text": p.get("exact_text"),
         })
     import json
